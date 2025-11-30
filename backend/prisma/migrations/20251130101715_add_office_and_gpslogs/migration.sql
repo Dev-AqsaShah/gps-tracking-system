@@ -1,0 +1,20 @@
+-- CreateTable
+CREATE TABLE "Office" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "name" TEXT NOT NULL,
+    "lat" REAL NOT NULL,
+    "lng" REAL NOT NULL,
+    "radius" INTEGER NOT NULL DEFAULT 50,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- CreateTable
+CREATE TABLE "GpsLog" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "userId" INTEGER NOT NULL,
+    "lat" REAL NOT NULL,
+    "lng" REAL NOT NULL,
+    "speed" REAL,
+    "accuracy" REAL,
+    "timestamp" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

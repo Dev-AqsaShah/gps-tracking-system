@@ -1,0 +1,108 @@
+datasource db {
+  provider = "sqlite"
+}
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  name      String
+  phone     String? 
+  role      String? 
+  attendance Attendance[]
+}
+
+model Attendance {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  timeIn    DateTime
+  lat       Float?
+  lng       Float?
+  photoUrl  String?
+  status    String   @default("present")
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Office {
+  id        Int     @id @default(autoincrement())
+  name      String
+  lat       Float
+  lng       Float
+  radius    Int     @default(50) // meters
+  createdAt DateTime @default(now())
+}
+
+model GpsLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  lat       Float
+  lng       Float
+  speed     Float?   // optional
+  accuracy  Float?   // optional
+  timestamp DateTime @default(now())
+}
+model Customer {
+  id               Int       @id @default(autoincrement())
+  name             String
+  area             String?
+  lat              Float
+  lng              Float
+  expectedVisitDay DateTime? // optional schedule
+  createdAt        DateTime  @default(now())
+  visits           Visit[]
+  orders           Order[]
+}
+
+model Visit {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  customerId Int
+  timeIn     DateTime
+  timeOut    DateTime?
+  notes      String?
+  photoUrl   String?
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+}
+
+model Order {
+  id          Int      @id @default(autoincrement())
+  customerId  Int
+  userId      Int
+  amount      Float
+  items       Json
+  status      String   @default("ORDERED") // ORDERED, DELIVERED, PARTIAL_RETURN, RETURNED
+  deliveryDate DateTime?
+  createdAt   DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+  returns  Return[]
+}
+
+model Return {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  reason    String
+  photoUrl  String?
+  lat       Float?
+  lng       Float?
+  status    String   @default("PENDING") // PENDING/APPROVED/REJECTED
+  createdAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+}
+
+model DayClosing {
+  id           Int     @id @default(autoincrement())
+  userId       Int
+  totalOrders  Int
+  totalReturns Int
+  totalVisits  Int
+  closingTime  DateTime @default(now())
+}
