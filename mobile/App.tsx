@@ -1,3 +1,4 @@
+// App.tsx
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, Alert } from 'react-native';
 import * as Location from 'expo-location';
@@ -5,8 +6,12 @@ import * as TaskManager from 'expo-task-manager';
 import axios from 'axios';
 import { checkGeoFence } from './geofence';
 
+// ====== CONFIG: point this to your backend (PC IP or ngrok) ======
+// You gave: 172.16.172.50  (default backend port 3000)
+const BACKEND_BASE_URL = 'http://172.16.172.50:3000';
+
 const LOCATION_TASK_NAME = 'BACKGROUND_LOCATION_TASK';
-const userId = 1; // replace after login
+const userId = 1; // replace with logged-in user id
 
 // 🔥 Global office list (will be filled after API fetch)
 let officeList: any[] = [];
@@ -14,7 +19,7 @@ let officeList: any[] = [];
 // 1️⃣ Background Task
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
   if (error) {
-    console.error(error);
+    console.error('Background task error:', error);
     return;
   }
 
@@ -25,14 +30,19 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
       const currentLat = loc.coords.latitude;
       const currentLng = loc.coords.longitude;
 
-      // 2️⃣ Check geofence for all offices
-      for (let office of officeList) {
-        await checkGeoFence(currentLat, currentLng, office, userId);
+      // 2️⃣ Check geofence for all offices (local logic + notify backend inside checkGeoFence)
+      try {
+        for (let office of officeList) {
+          // note: checkGeoFence will itself call backend /api/geofence/event
+          await checkGeoFence(currentLat, currentLng, office, userId);
+        }
+      } catch (gErr) {
+        console.warn('geofence check error:', (gErr as any).message ?? gErr);
       }
 
       // 3️⃣ Send GPS data to backend
       try {
-        await axios.post('https://<your-backend>/api/gps/track', {
+        await axios.post(`${BACKEND_BASE_URL}/api/gps/track`, {
           userId,
           lat: currentLat,
           lng: currentLng,
@@ -40,8 +50,9 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
           speed: loc.coords.speed,
           timestamp: loc.timestamp,
         });
-      } catch (err) {
-        console.warn('GPS upload failed', err);
+        console.log('GPS uploaded:', currentLat, currentLng);
+      } catch (err: any) {
+        console.warn('GPS upload failed:', err?.message ?? err);
       }
     }
   }
@@ -55,11 +66,13 @@ export default function App() {
   useEffect(() => {
     const fetchOffices = async () => {
       try {
-        const res = await axios.get('https://<your-backend>/api/office');
-        setOffices(res.data.offices);
-        officeList = res.data.offices; // 👈 background task ke liye global copy
-      } catch (err) {
-        console.warn('Failed to fetch offices', err);
+        const res = await axios.get(`${BACKEND_BASE_URL}/api/office`);
+        const list = res.data?.offices ?? res.data ?? [];
+        setOffices(list);
+        officeList = list; // 👈 background task ke liye global copy
+        console.log('Offices loaded:', list.length);
+      } catch (err: any) {
+        console.warn('Failed to fetch offices:', err?.message ?? err);
       }
     };
     fetchOffices();
@@ -68,35 +81,44 @@ export default function App() {
   // 5️⃣ Request Location Permissions + Start Tracking
   useEffect(() => {
     (async () => {
-      let { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
-      let { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+      const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
+      const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
 
       if (foregroundStatus !== 'granted' || backgroundStatus !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permissions are required.');
+        Alert.alert('Permission Denied', 'Foreground and background location permissions are required.');
         return;
       }
 
       setHasLocationPermission(true);
 
-      await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-        accuracy: Location.Accuracy.Highest,
-        distanceInterval: 10,
-        deferredUpdatesInterval: 60000,
-        showsBackgroundLocationIndicator: true,
-        foregroundService: {
-          notificationTitle: 'GPS Tracking Active',
-          notificationBody: 'We are tracking your location in background',
-          notificationColor: '#1e90ff',
-        },
-      });
+      try {
+        await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+          accuracy: Location.Accuracy.Highest,
+          distanceInterval: 10,
+          deferredUpdatesInterval: 60000,
+          showsBackgroundLocationIndicator: true,
+          foregroundService: {
+            notificationTitle: 'GPS Tracking Active',
+            notificationBody: 'We are tracking your location in background',
+            notificationColor: '#1e90ff',
+          },
+        });
+        console.log('Background location updates started.');
+      } catch (err: any) {
+        console.warn('startLocationUpdatesAsync failed:', err?.message ?? err);
+      }
     })();
   }, []);
 
   return (
     <View style={styles.container}>
-      <Text>GPS Tracking App</Text>
-      <Text>{hasLocationPermission ? 'Tracking Active' : 'Permissions Required'}</Text>
-      <Text>Total Offices Loaded: {offices.length}</Text>
+      <Text style={styles.title}>GPS Tracking App</Text>
+      <Text>{hasLocationPermission ? 'Permissions granted — Tracking active (if supported)' : 'Permissions required'}</Text>
+      <Text style={{ marginTop: 8 }}>Backend: {BACKEND_BASE_URL}</Text>
+      <Text style={{ marginTop: 12 }}>Total Offices Loaded: {offices.length}</Text>
+      <Text style={{ marginTop: 12, fontSize: 12, color: '#666' }}>
+        Note: Expo Go on Android does NOT support background location. Use a dev build / emulator for background tracking.
+      </Text>
     </View>
   );
 }
@@ -107,6 +129,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 16,
   },
+  title: { fontSize: 18, fontWeight: '700', marginBottom: 6 },
 });
-
