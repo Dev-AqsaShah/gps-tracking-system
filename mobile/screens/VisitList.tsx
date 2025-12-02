@@ -16,6 +16,11 @@ export default function VisitList({ navigation }: any) {
     requestLocation()
   }, [])
 
+  // const fetchCustomers = async () => {
+  //   const res = await axios.get('https://<your-backend>/api/customer/list')
+  //   setCustomers(res.data.customers)
+  // }
+
   const fetchCustomers = async () => {
     const res = await axios.get('https://<your-backend>/api/customer/list')
     setCustomers(res.data.customers)
