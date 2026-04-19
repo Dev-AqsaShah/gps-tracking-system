@@ -12,7 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data: {
         customerId: Number(customerId),
         userId: Number(userId),
-        items: items,      // items should be JSON (array of {productId, qty, price})
+        items: JSON.stringify(items),
         amount: Number(amount ?? 0)
       }
     })

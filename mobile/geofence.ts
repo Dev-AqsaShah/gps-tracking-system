@@ -1,14 +1,9 @@
 // mobile/geofence.ts
 import axios from 'axios';
 import * as Location from 'expo-location';
+import { BACKEND_BASE_URL } from './config';
 
-/**
- * Replace with your backend base URL.
- * - For Android emulator: use http://10.0.2.2:3000
- * - For iOS simulator: http://localhost:3000
- * - For real device on same Wi-Fi: http://192.168.x.y:3000
- */
-const BACKEND = '<YOUR_BACKEND_URL>'; // <-- REPLACE THIS
+const BACKEND = BACKEND_BASE_URL;
 
 // Haversine formula returns distance in meters
 export function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number) {
