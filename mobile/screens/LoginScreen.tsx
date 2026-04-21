@@ -7,16 +7,16 @@ import { colors, shadow } from '../theme';
 
 export default function LoginScreen({ navigation }: any) {
   const { login } = useAuth();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
 
   const handleLogin = async () => {
-    if (!username.trim() || !password.trim()) { Alert.alert('Required', 'Enter username and password.'); return; }
+    if (!email.trim() || !password.trim()) { Alert.alert('Required', 'Enter email and password.'); return; }
     setLoading(true);
     try {
-      const res = await axios.post(`${BACKEND_BASE_URL}/api/auth/login`, { username: username.trim(), password });
+      const res = await axios.post(`${BACKEND_BASE_URL}/api/auth/login`, { email: email.trim().toLowerCase(), password });
       if (res.data.success) await login(res.data.user);
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? 'Login failed. Check your connection.';
@@ -42,11 +42,11 @@ export default function LoginScreen({ navigation }: any) {
           <Text style={styles.cardTitle}>Sign In</Text>
           <Text style={styles.cardSub}>Enter your credentials to continue</Text>
 
-          <Text style={styles.label}>USERNAME</Text>
+          <Text style={styles.label}>EMAIL ADDRESS</Text>
           <TextInput
-            style={styles.input} value={username} onChangeText={setUsername}
-            placeholder="Enter username" placeholderTextColor={colors.textMuted}
-            autoCapitalize="none" autoCorrect={false}
+            style={styles.input} value={email} onChangeText={setEmail}
+            placeholder="you@example.com" placeholderTextColor={colors.textMuted}
+            keyboardType="email-address" autoCapitalize="none" autoCorrect={false}
           />
 
           <Text style={styles.label}>PASSWORD</Text>

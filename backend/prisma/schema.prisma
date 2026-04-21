@@ -9,7 +9,7 @@ generator client {
 
 model User {
   id          Int          @id @default(autoincrement())
-  username    String       @unique
+  email       String       @unique
   password    String
   name        String
   phone       String?
@@ -17,27 +17,17 @@ model User {
   role        String       @default("salesman")
   createdAt   DateTime     @default(now())
   attendance  Attendance[]
-  visits      Visit[]
-  orders      Order[]
 }
 
 model Attendance {
-  id       Int      @id @default(autoincrement())
-  userId   Int
-  timeIn   DateTime
-  lat      Float?
-  lng      Float?
-  status   String   @default("present")
-  user     User     @relation(fields: [userId], references: [id])
-}
-
-model Office {
-  id        Int      @id @default(autoincrement())
-  name      String
-  lat       Float
-  lng       Float
-  radius    Int      @default(50)
-  createdAt DateTime @default(now())
+  id      Int       @id @default(autoincrement())
+  userId  Int
+  timeIn  DateTime
+  timeOut DateTime?
+  lat     Float?
+  lng     Float?
+  status  String    @default("present")
+  user    User      @relation(fields: [userId], references: [id])
 }
 
 model GpsLog {
@@ -48,62 +38,4 @@ model GpsLog {
   speed     Float?
   accuracy  Float?
   timestamp DateTime @default(now())
-}
-
-model Customer {
-  id        Int      @id @default(autoincrement())
-  name      String
-  area      String?
-  lat       Float
-  lng       Float
-  createdAt DateTime @default(now())
-  visits    Visit[]
-  orders    Order[]
-}
-
-model Visit {
-  id         Int       @id @default(autoincrement())
-  userId     Int
-  customerId Int
-  timeIn     DateTime
-  timeOut    DateTime?
-  notes      String?
-  createdAt  DateTime  @default(now())
-  user       User      @relation(fields: [userId], references: [id])
-  customer   Customer  @relation(fields: [customerId], references: [id])
-}
-
-model Order {
-  id           Int       @id @default(autoincrement())
-  customerId   Int
-  userId       Int
-  amount       Float
-  items        String
-  status       String    @default("ORDERED")
-  deliveryDate DateTime?
-  createdAt    DateTime  @default(now())
-  customer     Customer  @relation(fields: [customerId], references: [id])
-  user         User      @relation(fields: [userId], references: [id])
-  returns      Return[]
-}
-
-model Return {
-  id        Int      @id @default(autoincrement())
-  orderId   Int
-  reason    String
-  photoUrl  String?
-  lat       Float?
-  lng       Float?
-  status    String   @default("PENDING")
-  createdAt DateTime @default(now())
-  order     Order    @relation(fields: [orderId], references: [id])
-}
-
-model DayClosing {
-  id           Int      @id @default(autoincrement())
-  userId       Int
-  totalOrders  Int
-  totalReturns Int
-  totalVisits  Int
-  closingTime  DateTime @default(now())
 }

@@ -7,7 +7,7 @@ import { colors, shadow } from '../theme';
 
 export default function RegisterScreen({ navigation }: any) {
   const { login } = useAuth();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
@@ -18,8 +18,12 @@ export default function RegisterScreen({ navigation }: any) {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleRegister = async () => {
-    if (!username.trim() || !password || !name.trim()) {
-      Alert.alert('Required', 'Username, password and full name are required.');
+    if (!email.trim() || !password || !name.trim()) {
+      Alert.alert('Required', 'Email, password and full name are required.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
     if (password.length < 6) {
@@ -33,7 +37,7 @@ export default function RegisterScreen({ navigation }: any) {
     setLoading(true);
     try {
       const res = await axios.post(`${BACKEND_BASE_URL}/api/auth/register`, {
-        username: username.trim(),
+        email: email.trim().toLowerCase(),
         password,
         name: name.trim(),
         phone: phone.trim() || undefined,
@@ -69,11 +73,11 @@ export default function RegisterScreen({ navigation }: any) {
             autoCapitalize="words"
           />
 
-          <Text style={styles.label}>USERNAME *</Text>
+          <Text style={styles.label}>EMAIL ADDRESS *</Text>
           <TextInput
-            style={styles.input} value={username} onChangeText={setUsername}
-            placeholder="Choose a username" placeholderTextColor={colors.textMuted}
-            autoCapitalize="none" autoCorrect={false}
+            style={styles.input} value={email} onChangeText={setEmail}
+            placeholder="you@example.com" placeholderTextColor={colors.textMuted}
+            keyboardType="email-address" autoCapitalize="none" autoCorrect={false}
           />
 
           <Text style={styles.label}>PASSWORD *</Text>

@@ -6,7 +6,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const records = await prisma.attendance.findMany({
     orderBy: { timeIn: 'desc' },
     take: 100,
-    include: { user: { select: { name: true } } },
+    include: { user: { select: { name: true, email: true, companyName: true } } },
   })
   res.status(200).json({ records })
 }

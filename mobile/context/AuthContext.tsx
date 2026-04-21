@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-type User = { id: number; username: string; name: string; phone: string | null; companyName: string | null };
+type User = { id: number; email: string; name: string; phone: string | null; companyName: string | null };
 
 type AuthContextType = {
   user: User | null;
@@ -17,10 +17,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    AsyncStorage.getItem('user').then(val => {
-      if (val) setUser(JSON.parse(val));
-      setLoading(false);
-    });
+    AsyncStorage.getItem('user')
+      .then(val => {
+        if (val) setUser(JSON.parse(val));
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   const login = async (u: User) => {
