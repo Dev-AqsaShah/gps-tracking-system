@@ -16,10 +16,10 @@ export default function LoginScreen({ navigation }: any) {
     if (!email.trim() || !password.trim()) { Alert.alert('Required', 'Enter email and password.'); return; }
     setLoading(true);
     try {
-      const res = await axios.post(`${BACKEND_BASE_URL}/api/auth/login`, { email: email.trim().toLowerCase(), password });
+      const res = await axios.post(`${BACKEND_BASE_URL}/api/auth/login`, { email: email.trim().toLowerCase(), password }, { timeout: 8000 });
       if (res.data.success) await login(res.data.user);
     } catch (err: any) {
-      const msg = err?.response?.data?.error ?? 'Login failed. Check your connection.';
+      const msg = err?.response?.data?.error ?? `Cannot reach server at ${BACKEND_BASE_URL}. Check WiFi.`;
       Alert.alert('Login Failed', msg);
     } finally { setLoading(false); }
   };

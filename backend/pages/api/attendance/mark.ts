@@ -8,7 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).end()
 
   try {
-    const { userId, lat, lng, photoUrl } = req.body
+    const { userId, lat, lng } = req.body
     if (!userId) return res.status(400).json({ error: 'userId required' })
 
     const attendance = await prisma.attendance.create({
@@ -17,7 +17,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         timeIn: new Date(),
         lat: lat ? Number(lat) : null,
         lng: lng ? Number(lng) : null,
-        photoUrl: photoUrl ?? null,
       },
     })
 

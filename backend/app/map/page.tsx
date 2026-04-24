@@ -1,18 +1,15 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
 
-type GpsLog = { id: number; userId: number; lat: number; lng: number; speed: number | null; timestamp: string; userName: string; userUsername: string };
-type LastPosition = { userId: number; lat: number; lng: number; timestamp: string; userName: string; userUsername: string };
-type Customer = { id: number; name: string; area: string; lat: number; lng: number };
-type Office = { id: number; name: string; lat: number; lng: number; radius: number };
-type Visit = { id: number; timeIn: string; timeOut: string | null; customer: { name: string; lat: number; lng: number } };
-type User = { id: number; name: string; username: string; companyName: string | null };
+type GpsLog = { id: number; userId: number; lat: number; lng: number; speed: number | null; timestamp: string; userName: string };
+type LastPosition = { userId: number; lat: number; lng: number; timestamp: string; userName: string; userEmail: string; distanceKm: string; totalPoints: number };
+type User = { id: number; name: string; email: string };
 
 const SALESMAN_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
 
 export default function MapPage() {
   const mapRef = useRef<any>(null);
-  const [data, setData] = useState<{ gpsLogs: GpsLog[]; lastPositions: LastPosition[]; customers: Customer[]; offices: Office[]; visits: Visit[]; users: User[] } | null>(null);
+  const [data, setData] = useState<{ gpsLogs: GpsLog[]; lastPositions: LastPosition[]; users: User[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState('');
 
@@ -47,8 +44,8 @@ export default function MapPage() {
       });
 
       if (mapRef.current && !(mapRef.current as any)._leaflet_id) {
-        const centerLat = data.gpsLogs[0]?.lat ?? data.offices[0]?.lat ?? 31.5204;
-        const centerLng = data.gpsLogs[0]?.lng ?? data.offices[0]?.lng ?? 74.3587;
+        const centerLat = data.gpsLogs[0]?.lat ?? 31.5204;
+        const centerLng = data.gpsLogs[0]?.lng ?? 74.3587;
 
         const map = L.map(mapRef.current).setView([centerLat, centerLng], 13);
         (mapRef.current as any)._mapInstance = map;
@@ -57,14 +54,12 @@ export default function MapPage() {
           attribution: '© OpenStreetMap contributors',
         }).addTo(map);
 
-        // Group GPS logs by userId and draw each salesman's route in their color
+        // Build color map per user
         const userColorMap: Record<number, string> = {};
         const userIds = [...new Set(data.gpsLogs.map(g => g.userId))];
-        userIds.forEach((uid, i) => {
-          userColorMap[uid] = SALESMAN_COLORS[i % SALESMAN_COLORS.length];
-        });
+        userIds.forEach((uid, i) => { userColorMap[uid] = SALESMAN_COLORS[i % SALESMAN_COLORS.length]; });
 
-        // Draw polyline per user
+        // Group GPS logs by userId and draw routes
         const logsByUser: Record<number, GpsLog[]> = {};
         for (const log of data.gpsLogs) {
           if (!logsByUser[log.userId]) logsByUser[log.userId] = [];
@@ -79,77 +74,52 @@ export default function MapPage() {
             L.polyline(coords, { color, weight: 3, opacity: 0.75 }).addTo(map);
           }
 
-          // Small GPS dots for this user's trail
+          // GPS trail dots
           logs.forEach((log, i) => {
             const isLast = i === logs.length - 1;
-            const circle = L.circleMarker([log.lat, log.lng], {
-              radius: isLast ? 0 : 4,
-              fillColor: color,
-              color: '#fff',
-              weight: 1,
-              opacity: 1,
-              fillOpacity: 0.7,
-            }).addTo(map);
-            const time = new Date(log.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-            if (!isLast) circle.bindPopup(`<div style="font-family:sans-serif"><b>${log.userName}</b><br/><small>${time}</small></div>`);
+            if (!isLast) {
+              const circle = L.circleMarker([log.lat, log.lng], {
+                radius: 4, fillColor: color, color: '#fff', weight: 1, opacity: 1, fillOpacity: 0.7,
+              }).addTo(map);
+              const time = new Date(log.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+              circle.bindPopup(`<div style="font-family:sans-serif"><b>${log.userName}</b><br/><small>${time}</small></div>`);
+            }
           });
         }
 
-        // Last position per salesman — large named marker
+        // Last position markers with name + distance
         data.lastPositions.forEach((pos, i) => {
           const color = userColorMap[pos.userId] ?? SALESMAN_COLORS[i % SALESMAN_COLORS.length];
           const initials = pos.userName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+          const distKm = parseFloat(pos.distanceKm);
+          const distLabel = distKm < 1 ? `${(distKm * 1000).toFixed(0)}m` : `${distKm.toFixed(2)}km`;
+
           const salesmanIcon = L.divIcon({
-            html: `<div style="background:${color};color:white;border-radius:50% 50% 50% 0;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;border:2px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);transform:rotate(-45deg)">
-              <span style="transform:rotate(45deg)">${initials}</span>
-            </div>
-            <div style="background:${color};color:white;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap;text-align:center;margin-top:4px;box-shadow:0 2px 6px rgba(0,0,0,0.3)">${pos.userName}</div>`,
+            html: `<div style="text-align:center">
+              <div style="background:${color};color:white;border-radius:50% 50% 50% 0;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;border:2px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);transform:rotate(-45deg);margin:0 auto">
+                <span style="transform:rotate(45deg)">${initials}</span>
+              </div>
+              <div style="background:${color};color:white;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap;text-align:center;margin-top:4px;box-shadow:0 2px 6px rgba(0,0,0,0.3)">${pos.userName}</div>
+            </div>`,
             className: '',
-            iconSize: [80, 56],
-            iconAnchor: [40, 56],
+            iconSize: [80, 60],
+            iconAnchor: [40, 60],
           });
+
           L.marker([pos.lat, pos.lng], { icon: salesmanIcon }).addTo(map)
             .bindPopup(`
-              <div style="font-family:sans-serif;min-width:180px">
+              <div style="font-family:sans-serif;min-width:190px">
                 <div style="font-size:15px;font-weight:700;color:${color};margin-bottom:4px">${pos.userName}</div>
-                <div style="font-size:12px;color:#64748B">@${pos.userUsername}</div>
-                <div style="font-size:12px;margin-top:6px;color:#374151">
-                  📍 ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}
-                </div>
-                <div style="font-size:12px;color:#64748B">
-                  Last seen: ${new Date(pos.timestamp).toLocaleTimeString()}
-                </div>
+                <div style="font-size:12px;color:#64748B;margin-bottom:6px">${pos.userEmail}</div>
+                <div style="font-size:13px;color:#374151;margin-bottom:2px">📍 ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}</div>
+                <div style="font-size:13px;color:#374151;margin-bottom:2px">🛣️ Distance: <b>${distLabel}</b></div>
+                <div style="font-size:12px;color:#64748B">GPS points: ${pos.totalPoints}</div>
+                <div style="font-size:12px;color:#64748B">Last seen: ${new Date(pos.timestamp).toLocaleTimeString()}</div>
               </div>
             `);
         });
 
-        // Customer markers
-        const customerIcon = L.divIcon({
-          html: `<div style="background:#16A34A;color:white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)">🏪</div>`,
-          className: '', iconSize: [32, 32], iconAnchor: [16, 16],
-        });
-        data.customers.forEach(c => {
-          L.marker([c.lat, c.lng], { icon: customerIcon }).addTo(map)
-            .bindPopup(`<div style="font-family:sans-serif"><b>${c.name}</b><br/><small>${c.area ?? ''}</small></div>`);
-          L.circle([c.lat, c.lng], { radius: 200, color: '#16A34A', fillColor: '#16A34A', fillOpacity: 0.06, weight: 1, dashArray: '4' }).addTo(map);
-        });
-
-        // Office markers
-        data.offices.forEach(o => {
-          const officeIcon = L.divIcon({
-            html: `<div style="background:#7C3AED;color:white;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)">🏢</div>`,
-            className: '', iconSize: [36, 36], iconAnchor: [18, 18],
-          });
-          L.marker([o.lat, o.lng], { icon: officeIcon }).addTo(map)
-            .bindPopup(`<div style="font-family:sans-serif"><b>${o.name}</b><br/><small>Geofence radius: ${o.radius}m</small></div>`);
-          L.circle([o.lat, o.lng], { radius: o.radius, color: '#7C3AED', fillColor: '#7C3AED', fillOpacity: 0.1, weight: 2 }).addTo(map);
-        });
-
-        const allCoords: [number, number][] = [
-          ...data.gpsLogs.map(g => [g.lat, g.lng] as [number, number]),
-          ...data.customers.map(c => [c.lat, c.lng] as [number, number]),
-          ...data.offices.map(o => [o.lat, o.lng] as [number, number]),
-        ];
+        const allCoords: [number, number][] = data.gpsLogs.map(g => [g.lat, g.lng]);
         if (allCoords.length > 0) {
           map.fitBounds(L.latLngBounds(allCoords), { padding: [50, 50] });
         }
@@ -180,15 +150,21 @@ export default function MapPage() {
         <div style={{ background: '#0F172A', borderBottom: '1px solid #1E293B', padding: '10px 24px', display: 'flex', gap: 28, flexWrap: 'wrap', alignItems: 'center' }}>
           <Stat icon="👥" label="Active Salesmen" value={data.lastPositions.length} color="#3B82F6" />
           <Stat icon="📍" label="GPS Points" value={data.gpsLogs.length} color="#60A5FA" />
-          <Stat icon="🏪" label="Customers" value={data.customers.length} color="#10B981" />
-          <Stat icon="🏢" label="Offices" value={data.offices.length} color="#8B5CF6" />
-          {/* Salesman color legend */}
-          {data.lastPositions.map((pos, i) => (
-            <div key={pos.userId} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: SALESMAN_COLORS[i % SALESMAN_COLORS.length] }} />
-              <span style={{ fontSize: 12, color: '#94A3B8', fontWeight: 600 }}>{pos.userName}</span>
-            </div>
-          ))}
+          {/* Per-salesman distance + color legend */}
+          {data.lastPositions.map((pos, i) => {
+            const color = SALESMAN_COLORS[i % SALESMAN_COLORS.length];
+            const distKm = parseFloat(pos.distanceKm);
+            const distLabel = distKm < 1 ? `${(distKm * 1000).toFixed(0)}m` : `${distKm.toFixed(2)}km`;
+            return (
+              <div key={pos.userId} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#1E293B', borderRadius: 10, padding: '6px 12px', border: `1px solid ${color}33` }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: 12, color: '#F1F5F9', fontWeight: 700 }}>{pos.userName}</div>
+                  <div style={{ fontSize: 11, color: '#64748B' }}>🛣️ {distLabel} • {pos.totalPoints} pts</div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -202,7 +178,7 @@ export default function MapPage() {
             </div>
           </div>
         )}
-        {!loading && data?.gpsLogs.length === 0 && data?.customers.length === 0 && (
+        {!loading && data?.gpsLogs.length === 0 && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0A0F1E', zIndex: 10, color: '#94A3B8' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>📡</div>
             <div style={{ fontSize: 18, fontWeight: 700, color: '#F1F5F9', marginBottom: 8 }}>No tracking data yet</div>
@@ -217,8 +193,8 @@ export default function MapPage() {
         <span style={{ fontSize: 13, fontWeight: 700, color: '#64748B' }}>LEGEND:</span>
         <span style={{ fontSize: 13, color: '#94A3B8' }}>📍 Salesman (named pin)</span>
         <span style={{ fontSize: 13, color: '#94A3B8' }}>— Route trail</span>
-        <span style={{ fontSize: 13, color: '#94A3B8' }}>🏪 Customer (200m zone)</span>
-        <span style={{ fontSize: 13, color: '#94A3B8' }}>🏢 Office (geofence)</span>
+        <span style={{ fontSize: 13, color: '#94A3B8' }}>● GPS point (tap for time)</span>
+        <span style={{ fontSize: 13, color: '#94A3B8' }}>🛣️ Distance traveled today</span>
       </div>
     </div>
   );

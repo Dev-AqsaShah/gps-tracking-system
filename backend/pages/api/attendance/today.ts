@@ -12,12 +12,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const startOfDay = new Date()
     startOfDay.setHours(0, 0, 0, 0)
 
-    const attendance = await prisma.attendance.findFirst({
+    const records = await prisma.attendance.findMany({
       where: { userId, timeIn: { gte: startOfDay } },
       orderBy: { timeIn: 'desc' },
     })
 
-    return res.status(200).json({ attendance: attendance ?? null })
+    // Latest open record (no timeOut) means currently active
+    const active = records.find(r => !r.timeOut) ?? null
+
+    return res.status(200).json({ records, active })
   } catch (err) {
     console.error(err)
     return res.status(500).json({ error: 'Server error' })
